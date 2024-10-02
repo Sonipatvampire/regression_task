@@ -1,29 +1,19 @@
+#@title Code - Load dependencies
+
+# General
 import pandas as pd
 
-def load_data(file_path):
-    data = pd.read_csv(file_path)
-    return data
+# File path
+fueltrain_dataset = '/Users/kunalsingh/Documents/Kunal_Singh_A1/regression_task/data/training_data.csv'
 
-def encode(data):
-    # Identify categorical columns and apply one-hot encoding
-    categorical_columns = data.select_dtypes(include=['object']).columns
-    data = pd.get_dummies(data, columns=categorical_columns, drop_first=True)
-    return data
+# Read the CSV into a DataFrame
+df = pd.read_csv(fueltrain_dataset)
 
-def preprocess_data(data):
-    # Encode categorical variables
-    data = encode(data)
+# Strip whitespace from column names
+df.columns = df.columns.str.strip()
 
-    # Handle missing values (fill with mean for numeric columns)
-    data.fillna(data.mean(), inplace=True)
+# Select the columns for training
+training_df = df[['VEHICLE CLASS', 'ENGINE SIZE', 'CYLINDERS', 'TRANSMISSION', 'FUEL', 'FUEL CONSUMPTION', 'COEMISSIONS']]
 
-    # Select relevant features for regression and drop unnecessary columns
-    X = data[['Year', 'ENGINE SIZE', 'CYLINDERS']]  # Add more features if needed
-    y = data['FUEL CONSUMPTION']
-    
-    return X, y
-
-if __name__ == "__main__":
-    data = load_data('/Users/kunalsingh/Documents/Kunal_Singh_A1/regression_task/data/training_data.csv')
-    X, y = preprocess_data(data)
-
+print('Read dataset completed successfully.')
+print('Total number of rows: {0}\n\n'.format(len(training_df.index)))

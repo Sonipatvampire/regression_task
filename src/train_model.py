@@ -46,19 +46,4 @@ def run_experiment(df, feature_names, label_name, learning_rate, epochs):
     print('\nSUCCESS: training experiment complete\n')
     print(f'Trained weights: {trained_weights}\nTrained bias: {trained_bias}')
 
-# Example usage
-if __name__ == "__main__":
-    # Load your data
-    data_file_path = '/Users/kunalsingh/Documents/Kunal_Singh_A1/regression_task/data/training_data.csv'
-    df = pd.read_csv(data_file_path)
-
-    # Define feature names and label name
-    feature_names = ['Year', 'ENGINE SIZE', 'CYLINDERS']
-    label_name = 'FUEL CONSUMPTION'
-
-    # Set parameters
-    learning_rate = 0.01
-    epochs = 1000
-
-    # Run the experiment
-    run_experiment(df, feature_names, label_name, learning_rate, epochs)
+    return trained_weights, trained_bias
