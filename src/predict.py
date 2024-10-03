@@ -1,60 +1,105 @@
 import pandas as pd
 import numpy as np
-import pickle
 
-class LinearRegression:
-    def __init__(self):
-        self.coefficients = None
+def format_currency(x):
+    """Format numerical value as currency."""
+    return "{:.2f}".format(x)
 
-    def fit(self, X, y):
-        X_b = np.c_[np.ones((X.shape[0], 1)), X]  # add bias term
-        self.coefficients = np.linalg.inv(X_b.T @ X_b) @ X_b.T @ y
+def build_batch(df, batch_size):
+    """Build a random batch of data from the DataFrame."""
+    batch = df.sample(n=batch_size).copy()
+    batch.set_index(np.arange(batch_size), inplace=True)
+    return batch
 
-    def predict(self, X):
-        X_b = np.c_[np.ones((X.shape[0], 1)), X]  # add bias term
-        return X_b @ self.coefficients
+def predict_fuel_consumption(model, df, features, label, batch_size=50):
+    """Make predictions on a batch of data."""
+    batch = build_batch(df, batch_size)
 
-def load_model(file_path):
-    with open(file_path, 'rb') as f:
-        model = pickle.load(f)
-    return model
+    # Assuming model is a tuple of (trained_weights, trained_bias)
+    trained_weights, trained_bias = model
 
-def evaluate_model(model, X, y):
-    predictions = model.predict(X)
-    mse = np.mean((y - predictions) ** 2)
+    # Define a prediction function
+    def predict(features, weights, bias):
+        return features.dot(weights) + bias
+
+    # Make predictions using the prediction function
+    predicted_values = predict(batch.loc[:, features].values, trained_weights, trained_bias)
+
+    data = {"PREDICTED_CONSUMPTION": [], "OBSERVED_CONSUMPTION": [], "L1_LOSS": [],
+            features[0]: [], features[1]: [], features[2]: []}
+    
+    for i in range(batch_size):
+        predicted = predicted_values[i]
+        observed = batch.at[i, label]
+        data["PREDICTED_CONSUMPTION"].append(format_currency(predicted))
+        data["OBSERVED_CONSUMPTION"].append(format_currency(observed))
+        data["L1_LOSS"].append(format_currency(abs(observed - predicted)))
+        data[features[0]].append(batch.at[i, features[0]])
+        data[features[1]].append(batch.at[i, features[1]])
+        data[features[2]].append(batch.at[i, features[2]])
+
+    output_df = pd.DataFrame(data)
+    return output_df
+
+def show_predictions(output):
+    """Display the prediction results."""
+    header = "-" * 80
+    banner = header + "\n" + "|" + "PREDICTIONS".center(78) + "|" + "\n" + header
+    print(banner)
+    print(output)
+    return
+
+def save_metrics_and_predictions(y_true, y_pred, metrics, predictions_file='train_predictions.csv', metrics_file='train_metrics.txt'):
+    """Save metrics and predictions to files."""
+    
+    # Save predictions to CSV
+    predictions_df = pd.DataFrame({
+        'Predicted Consumption': y_pred,
+        'Observed Consumption': y_true,
+        'L1 Loss': np.abs(y_true - y_pred)
+    })
+    
+    predictions_df.to_csv(predictions_file, index=False)
+
+    # Save metrics to text file
+    with open(metrics_file, 'w') as f:
+        for metric, value in metrics.items():
+            f.write(f"{metric}: {value}\n")
+
+# Code - Make predictions
+
+def run_prediction(model, df, features, label):
+    """Run the prediction process and save metrics and predictions."""
+    # Make predictions using the updated prediction function
+    output = predict_fuel_consumption(model, df, features, label)
+
+    # Extract true values and predicted values
+    y_true = df[label].values
+    y_pred = output['PREDICTED_CONSUMPTION'].apply(lambda x: float(x.replace('$', '').replace(',', ''))).values
+
+    # Calculate metrics
+    mse = np.mean((y_true - y_pred) ** 2)
     rmse = np.sqrt(mse)
-    r2 = 1 - (np.sum((y - predictions) ** 2) / np.sum((y - np.mean(y)) ** 2))
-    
-    return mse, rmse, r2
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+    r2 = 1 - (ss_res / ss_tot)
 
-def save_metrics(metrics, file_path):
-    with open(file_path, 'w') as f:
-        f.write("Regression Metrics:\n")
-        f.write(f"Mean Squared Error (MSE): {metrics[0]:.2f}\n")
-        f.write(f"Root Mean Squared Error (RMSE): {metrics[1]:.2f}\n")
-        f.write(f"R-squared (R²) Score: {metrics[2]:.2f}\n")
+    # Create a dictionary of metrics
+    metrics = {
+        'Mean Squared Error (MSE)': mse,
+        'Root Mean Squared Error (RMSE)': rmse,
+        'R-squared (R²)': r2
+    }
 
-if __name__ == "__main__":
-    import argparse
-    from data_preprocessing import load_data, preprocess_data
+    # Save metrics and predictions
+    save_metrics_and_predictions(y_true, y_pred, metrics)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", required=True)
-    parser.add_argument("--data_path", required=True)
-    parser.add_argument("--metrics_output_path", required=True)
-    parser.add_argument("--predictions_output_path", required=True)
-    
-    args = parser.parse_args()
-    
-    # Load data and model
-    data = pd.read_csv(args.data_path)
-    X, y = preprocess_data(data)  # Ensure preprocess_data is accessible
-    model = load_model(args.model_path)
-    
-    # Evaluate
-    metrics = evaluate_model(model, X, y)
-    save_metrics(metrics, args.metrics_output_path)
-    
-    # Save predictions
-    predictions = model.predict(X)
-    pd.DataFrame(predictions).to_csv(args.predictions_output_path, header=False, index=False)
+    # Display predictions
+    show_predictions(output)
+
+# Update the feature and label names
+features = ['ENGINE SIZE', 'CYLINDERS', 'COEMISSIONS']
+label = 'FUEL CONSUMPTION'
+
+# Assuming 'model_2' is the trained model from the training process
+run_prediction(model_2, training_df, features, label)
