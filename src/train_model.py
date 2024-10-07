@@ -1,44 +1,64 @@
 import numpy as np
-import pickle
+import pandas as pd
 
-# Load preprocessed data
-def load_data(file_path):
-    try:
-        data = np.loadtxt(file_path, delimiter=',', skiprows=1)
-        return data
-    except ValueError as e:
-        print(f"Error loading data from {file_path}: {e}")
-        return None
+def linear_regression(X, y, learning_rate, epochs):
+    """Train a linear regression model using gradient descent."""
+    m, n = X.shape  # m: number of samples, n: number of features
+    weights = np.zeros(n)  # Initialize weights
+    bias = 0  # Initialize bias
 
-X = load_data('../data/X_preprocessed.csv')
-y = load_data('../data/y_preprocessed.csv')
+    for epoch in range(epochs):
+        # Make predictions
+        y_pred = X.dot(weights) + bias
+        
+        # Compute the gradients
+        error = y_pred - y
+        weight_gradient = (1 / m) * (X.T.dot(error))
+        bias_gradient = (1 / m) * np.sum(error)
 
-# Ensure data is loaded correctly
-if X is None or y is None:
-    raise RuntimeError("Failed to load data. Exiting.")
+        # Update weights and bias
+        weights -= learning_rate * weight_gradient
+        bias -= learning_rate * bias_gradient
 
-# Split data into training and testing sets
-train_size = int(0.8 * len(X))
-X_train, X_test = X[:train_size], X[train_size:]
-y_train, y_test = y[:train_size], y[train_size:]
+        # Optional: Print loss for every 100 epochs
+        if epoch % 100 == 0:
+            loss = (1 / (2 * m)) * np.sum(error ** 2)
+            print(f"Epoch {epoch}, Loss: {loss}")
 
-# Function to train Linear Regression using the Normal Equation
-def train_linear_regression(X, y):
-    # Adding bias term
-    X_b = np.c_[np.ones(X.shape[0]), X]  
-    # Normal Equation: theta = (X_b^T * X_b)^(-1) * X_b^T * y
-    theta = np.linalg.inv(X_b.T.dot(X_b)).dot(X_b.T).dot(y)
-    return theta
+    return weights, bias
 
-# Model 1: Simple Linear Regression
-theta1 = train_linear_regression(X_train[:, 1:2], y_train)
-pickle.dump(theta1, open('../models/regression_model1.pkl', 'wb'))
+def train_model(df, feature_names, label_name, learning_rate, epochs):
+    """Train the model by feeding it data."""
+    features = df[feature_names].values
+    label = df[label_name].values
 
-# Model 2: Multiple Linear Regression
-theta2 = train_linear_regression(X_train, y_train)
-pickle.dump(theta2, open('../models/regression_model2.pkl', 'wb'))
+    # Train the linear regression model
+    trained_weights, trained_bias = linear_regression(features, label, learning_rate, epochs)
 
-# Model 3: Polynomial Regression (using quadratic features)
-X_train_poly = np.c_[X_train, X_train[:, 1]**2, X_train[:, 2]**2]
-theta3 = train_linear_regression(X_train_poly, y_train)
-pickle.dump(theta3, open('../models/regression_model3.pkl', 'wb'))
+    return trained_weights, trained_bias
+
+def run_experiment(df, feature_names, label_name, learning_rate, epochs):
+    """Run the training experiment."""
+    print(f'INFO: starting training experiment with features={feature_names} and label={label_name}\n')
+
+    trained_weights, trained_bias = train_model(df, feature_names, label_name, learning_rate, epochs)
+
+    print('\nSUCCESS: training experiment complete\n')
+    print(f'Trained weights: {trained_weights}\nTrained bias: {trained_bias}')
+
+# Example usage
+if __name__ == "__main__":
+    # Load your data
+    data_file_path = '/Users/kunalsingh/Documents/Kunal_Singh_A1/regression_task/data/training_data.csv'
+    df = pd.read_csv(data_file_path)
+
+    # Define feature names and label name
+    feature_names = ['Year', 'ENGINE SIZE', 'CYLINDERS']
+    label_name = 'FUEL CONSUMPTION'
+
+    # Set parameters
+    learning_rate = 0.01
+    epochs = 1000
+
+    # Run the experiment
+    run_experiment(df, feature_names, label_name, learning_rate, epochs)
